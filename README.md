@@ -2,8 +2,6 @@
 
 # Elastic Stack
 
-![Elastic Stack Banner](https://github.com/user-attachments/assets/elastic-stack-banner.png)
-
 The **Elastic Stack** is the open source platform that powers search, observability, security, and more. Build with Elasticsearch.
 
 ## Overview
