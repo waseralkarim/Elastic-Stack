@@ -26,8 +26,8 @@ wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo gpg --dearm
     sudo apt-get update && sudo apt-get install elasticsearch
     ```
     
+<img width="1600" height="864" alt="image" src="https://github.com/user-attachments/assets/74b2884e-14ee-44c9-9472-99ad7832dc8f" />
 
-![image.png](attachment:c2cd992b-0007-4b1f-a833-8821248e16fc:image.png)
 
 ### [**Set up a node as the first node in a cluster**](https://www.elastic.co/docs/deploy-manage/deploy/self-managed/install-elasticsearch-with-debian-package#first-node)
 
@@ -79,7 +79,8 @@ sudo vim /etc/elasticsearch/elasticsearch.yml
     
 4. Save your changes and close the editor.
 
-![image.png](attachment:0cc2b675-12f8-4819-9196-d7fbe6cdb394:image.png)
+<img width="1327" height="575" alt="image (1)" src="https://github.com/user-attachments/assets/27e37d5f-0b26-4e2d-8270-39204087200d" />
+
 
 ## [**Run Elasticsearch with `systemd`**](https://www.elastic.co/docs/deploy-manage/deploy/self-managed/install-elasticsearch-with-debian-package#running-systemd)
 
@@ -128,22 +129,4 @@ The call returns a response like this:
   },
   "tagline" : "You Know, for Search"
 }
-```
-
-## [**Reset the `elastic` superuser password**](https://www.elastic.co/docs/deploy-manage/deploy/self-managed/install-elasticsearch-with-debian-package#step-6-reset-the-elastic-superuser-password)
-
-Because Elasticsearch runs with `systemd` and not in a terminal, the `elastic` superuser password is not output when Elasticsearch starts for the first time. Use the [`elasticsearch-reset-password`](https://www.elastic.co/docs/reference/elasticsearch/command-line-tools/reset-password) tool tool to set the password for the user. This only needs to be done once for the cluster, and can be done as soon as the first node is started.
-
-```bash
-cd /usr/share/elasticsearch/bin/
-
-./elasticsearch-reset-password -i -u elastic
-```
-
-![image.png](attachment:a6e67c65-7187-4a94-b9c7-1b71337e1aee:image.png)
-
-We recommend storing the `elastic` password as an environment variable in your shell. For example:
-
-```bash
-export  ELASTIC_PASSWORD="your_password"
 ```
