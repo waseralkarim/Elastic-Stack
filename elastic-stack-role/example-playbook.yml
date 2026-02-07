@@ -1,0 +1,15 @@
+---
+- name: Install Elastic Stack (Elasticsearch + Kibana)
+  hosts: elastic_servers
+  become: yes
+  
+  roles:
+    - elastic-stack-role
+  
+  vars:
+    # Override default passwords (highly recommended!)
+    elastic_password: "YourSecurePassword123!"
+    kibana_elasticsearch_password: "YourKibanaPassword123!"
+    
+    # Optional: customize cluster name
+    # elasticsearch_cluster_name: "my-production-cluster"

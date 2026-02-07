@@ -1,0 +1,184 @@
+---
+# Main tasks file for Elastic Stack installation
+
+- name: Install required packages
+  apt:
+    name:
+      - apt-transport-https
+      - gnupg2
+      - curl
+      - python3-pexpect
+    state: present
+    update_cache: yes
+
+- name: Download and install Elasticsearch GPG key
+  shell: wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | gpg --dearmor -o /usr/share/keyrings/elasticsearch-keyring.gpg
+  args:
+    creates: /usr/share/keyrings/elasticsearch-keyring.gpg
+
+- name: Add Elasticsearch APT repository
+  copy:
+    content: "deb [signed-by=/usr/share/keyrings/elasticsearch-keyring.gpg] https://artifacts.elastic.co/packages/9.x/apt stable main"
+    dest: /etc/apt/sources.list.d/elastic-9.x.list
+    mode: '0644'
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Install Elasticsearch
+  apt:
+    name: elasticsearch
+    state: present
+
+- name: Backup original Elasticsearch config
+  copy:
+    src: /etc/elasticsearch/elasticsearch.yml
+    dest: /etc/elasticsearch/elasticsearch.yml.bak
+    remote_src: yes
+    force: no
+
+- name: Configure Elasticsearch
+  template:
+    src: elasticsearch.yml.j2
+    dest: /etc/elasticsearch/elasticsearch.yml
+    mode: '0660'
+    owner: root
+    group: elasticsearch
+  notify: restart elasticsearch
+
+- name: Enable and start Elasticsearch
+  systemd:
+    name: elasticsearch
+    enabled: yes
+    state: started
+    daemon_reload: yes
+
+- name: Wait for Elasticsearch to start
+  wait_for:
+    port: 9200
+    delay: 10
+    timeout: 60
+
+- name: Reset elastic user password
+  expect:
+    command: /usr/share/elasticsearch/bin/elasticsearch-reset-password -i -u elastic
+    responses:
+      "Please confirm that you would like to continue \\[y/N\\]": "y"
+      "Enter password for \\[elastic\\]:": "{{ elastic_password }}"
+      "Re-enter password for \\[elastic\\]:": "{{ elastic_password }}"
+    timeout: 60
+    creates: /root/.elastic_password_set
+  register: elastic_reset
+
+- name: Mark elastic password as set
+  file:
+    path: /root/.elastic_password_set
+    state: touch
+    mode: '0600'
+  when: elastic_reset.changed
+
+- name: Reset kibana_system user password
+  expect:
+    command: /usr/share/elasticsearch/bin/elasticsearch-reset-password -i -u kibana_system
+    responses:
+      "Please confirm that you would like to continue \\[y/N\\]": "y"
+      "Enter password for \\[kibana_system\\]:": "{{ kibana_elasticsearch_password }}"
+      "Re-enter password for \\[kibana_system\\]:": "{{ kibana_elasticsearch_password }}"
+    timeout: 60
+    creates: /root/.kibana_system_password_set
+  register: kibana_system_reset
+
+- name: Mark kibana_system password as set
+  file:
+    path: /root/.kibana_system_password_set
+    state: touch
+    mode: '0600'
+  when: kibana_system_reset.changed
+
+- name: Install Kibana
+  apt:
+    name: kibana
+    state: present
+
+- name: Copy Elasticsearch CA certificate for Kibana
+  copy:
+    src: /etc/elasticsearch/certs/http_ca.crt
+    dest: /etc/kibana/http_ca.crt
+    remote_src: yes
+    owner: root
+    group: kibana
+    mode: '0640'
+
+- name: Check if encryption keys file exists
+  stat:
+    path: /etc/kibana/.encryption_keys
+  register: encryption_keys_file
+
+- name: Generate Kibana encryption keys
+  shell: /usr/share/kibana/bin/kibana-encryption-keys generate --force
+  register: kibana_keys
+  changed_when: false
+  when: not encryption_keys_file.stat.exists
+
+- name: Generate encryption keys manually if command fails
+  set_fact:
+    saved_objects_key: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=32') }}"
+    reporting_key: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=32') }}"
+    security_key: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=32') }}"
+  when: not encryption_keys_file.stat.exists and (kibana_keys is not defined or kibana_keys.failed | default(false))
+
+- name: Extract encryption keys from generated output
+  set_fact:
+    saved_objects_key: "{{ (kibana_keys.stdout_lines | select('search', 'encryptedSavedObjects') | list | first).split()[-1] }}"
+    reporting_key: "{{ (kibana_keys.stdout_lines | select('search', 'reporting') | list | first).split()[-1] }}"
+    security_key: "{{ (kibana_keys.stdout_lines | select('search', 'security') | list | first).split()[-1] }}"
+  when: not encryption_keys_file.stat.exists and kibana_keys is defined and not (kibana_keys.failed | default(false))
+
+- name: Save encryption keys to file for idempotency
+  copy:
+    content: |
+      saved_objects_key: {{ saved_objects_key }}
+      reporting_key: {{ reporting_key }}
+      security_key: {{ security_key }}
+    dest: /etc/kibana/.encryption_keys
+    mode: '0600'
+    owner: root
+    group: kibana
+  when: not encryption_keys_file.stat.exists
+
+- name: Load existing encryption keys
+  slurp:
+    src: /etc/kibana/.encryption_keys
+  register: existing_keys
+  when: encryption_keys_file.stat.exists
+
+- name: Parse existing encryption keys
+  set_fact:
+    saved_objects_key: "{{ (existing_keys.content | b64decode | regex_search('saved_objects_key: (.+)', '\\1') | first) }}"
+    reporting_key: "{{ (existing_keys.content | b64decode | regex_search('reporting_key: (.+)', '\\1') | first) }}"
+    security_key: "{{ (existing_keys.content | b64decode | regex_search('security_key: (.+)', '\\1') | first) }}"
+  when: encryption_keys_file.stat.exists
+
+- name: Configure Kibana
+  template:
+    src: kibana.yml.j2
+    dest: /etc/kibana/kibana.yml
+    mode: '0660'
+    owner: root
+    group: kibana
+  notify: restart kibana
+
+- name: Enable and start Kibana
+  systemd:
+    name: kibana
+    enabled: yes
+    state: started
+    daemon_reload: yes
+
+- name: Display access information
+  debug:
+    msg:
+      - "Elasticsearch is running on https://{{ ansible_default_ipv4.address }}:9200"
+      - "Kibana is running on http://{{ ansible_default_ipv4.address }}:5601"
+      - "Elastic user password: {{ elastic_password }}"

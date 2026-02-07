@@ -1,0 +1,25 @@
+# Kibana is served by a back end server. This setting specifies the port to use.
+server.port: {{ kibana_port }}
+
+# Specifies the address to which the Kibana server will bind. IP addresses and host names are both valid values.
+server.host: "{{ kibana_host }}"
+
+# The URLs of the Elasticsearch instances to use for all your queries.
+elasticsearch.hosts: ["https://{{ ansible_default_ipv4.address }}:{{ elasticsearch_http_port }}"]
+
+# Kibana uses an index in Elasticsearch to store saved searches, visualizations and dashboards.
+# Kibana creates a new index if the index doesn't already exist.
+#kibana.index: ".kibana"
+
+# Credentials for the kibana_system user
+elasticsearch.username: "{{ kibana_elasticsearch_username }}"
+elasticsearch.password: "{{ kibana_elasticsearch_password }}"
+
+# SSL for Elasticsearch
+elasticsearch.ssl.certificateAuthorities: [ "/etc/kibana/http_ca.crt" ]
+elasticsearch.ssl.verificationMode: certificate
+
+# Encryption keys for saved objects and security
+xpack.encryptedSavedObjects.encryptionKey: "{{ saved_objects_key }}"
+xpack.reporting.encryptionKey: "{{ reporting_key }}"
+xpack.security.encryptionKey: "{{ security_key }}"
