@@ -210,10 +210,4 @@ sudo journalctl -u kibana -f
    sudo apt-get install python3-pexpect
    ```
 
-## License
-
-MIT
-
-## Author
-
 Created based on Elasticsearch and Kibana official documentation.
