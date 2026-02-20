@@ -19,6 +19,8 @@ The Elastic Stack (formerly ELK Stack) is a powerful collection of open-source p
 1. [Elasticsearch Setup](01-elasticsearch-installation.md)
 2. [Kibana Deployment](02-kibana-installation.md)
 3. [FileBeat Installation](03-filebeat-installation.md)
+4. [Kibana SSL/HTTPS Setup](04-kibana-ssl-https.md)
+5. [ElasticSearch SSL/HTTPS Setup](05-elasticsearch-ssl-tls.md) 
 
 ## Quick Start
 
